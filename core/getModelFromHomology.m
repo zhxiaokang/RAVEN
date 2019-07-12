@@ -2,6 +2,7 @@ function draftModel=getModelFromHomology(models,blastStructure,...
     getModelFor,preferredOrder,strictness,onlyGenesInModels,maxE,...
     minLen,minIde,mapNewGenesToOld)
 % getModelFromHomology
+%   TODO: reformat documentation
 %   Constructs a new model from a set of existing models and gene homology
 %   information.
 %
@@ -65,7 +66,7 @@ function draftModel=getModelFromHomology(models,blastStructure,...
 %    getModelFor,preferredOrder,strictness,onlyGenesInModels,maxE,...
 %    minLen,minIde,mapNewGenesToOld)
 %
-%   Simonas Marcisauskas, 2018-08-09
+%   Eduard Kerkhoven, 2019-07-12
 %
 
 if nargin<4
@@ -99,14 +100,14 @@ end
 %Check that all the information is in the blast structure
 modelNames=cell(numel(models),1);
 for i=1:numel(models)
-    modelNames{i}=models{i}.id;
-    %Gene short names and geneMiriams are often different between species,
-    %safer not to include them
-    if isfield(models{i},'geneShortNames')
-        models{i}=rmfield(models{i},'geneShortNames');
+    modelNames{i}=models{i}.modelID;
+    %Gene names are often different between species, safer not to
+    %include them. Entrez IDs of genes will also no longer match.
+    if isfield(models{i},'geneNames')
+        models{i}=rmfield(models{i},'geneNames');
     end
-    if isfield(models{i},'geneMiriams')
-        models{i}=rmfield(models{i},'geneMiriams');
+    if isfield(models{i},'geneEntrezID')
+        models{i}=rmfield(models{i},'geneEntrezID');
     end
 end
 
@@ -121,23 +122,27 @@ for i=1:numel(blastStructure)
         if j==0
             error(['While the blastStructure contains sequences from '...
                 'organismID "%s" (as\nprovided in getBlast), none of '...
-                'template models have this id (as model.id)'],...
+                'template models have this id (as model.modelID)'],...
                 string(blastStructure(i).fromId));
         end
         k=sum(ismember(blastStructure(i).fromGenes,models{j}.genes));
         if k<(numel(models{j}.genes)*0.05)
             error(['Less than 5%% of the genes in the template model '...
-                'with model.id "%s"\ncan be found in the blastStructure. '...
+                'with model.modelID "%s"\ncan be found in the blastStructure. '...
                 'Ensure that the protein FASTA\nused in getBlast and '...
                 'the template model used in getModelFromHomology\nuse '...
-                'the same style of gene identifiers'],models{j}.id)
+                'the same style of gene identifiers'],models{j}.modelID)
         end
     end
 end
 
-%Standardize grRules of template models
+%Standardize grRules of template models. REDO FOR .rules?
+fprintf('\nStandardizing grRules of template model with ID ');
 for i=1:length(models)
-    fprintf('\nStandardizing grRules of template model with ID "%s" ...',models{i}.id);
+    if ~isfield(models{i},'grRules')
+        models{i}=creategrRulesField(models{i});
+    end
+    fprintf('%s ...',models{i}.modelID);
     [models{i}.grRules,models{i}.rxnGeneMat]=standardizeGrRules(models{i},false);
 end
 fprintf(' done\n');
@@ -161,7 +166,9 @@ for i=1:numel(models)
     [hasGenes, ~]=find(models{i}.rxnGeneMat);
     hasNoGenes=1:numel(models{i}.rxns);
     hasNoGenes(hasGenes)=[];
-    models{i}=removeReactions(models{i},hasNoGenes,true,true);
+    hasNoGenes=models{i}.rxns(hasNoGenes);
+    models{i}=removeRxns(models{i},hasNoGenes);
+    models{i}=removeUnusedGenes(models{i});
 end
 
 %Create a structure that contains all genes used in the blasts in any
@@ -179,7 +186,7 @@ end
 %Get the corresponding indexes for those models in the 'models' structure
 useOrderIndexes=zeros(numel(models),1);
 for i=1:numel(models)
-    [~, index]=ismember(models{i}.id,useOrder);
+    [~, index]=ismember(models{i}.modelID,useOrder);
     useOrderIndexes(index)=i;
 end
 
@@ -367,7 +374,9 @@ for i=1:numel(models)
     %guaranteed to be deleted. This approach works fine for 'and'
     %complexes, but there should be a check that it doesn't keep 'or' genes
     %if it doesn't have to!
-    models{useOrderIndexes(i)}=removeGenes(models{useOrderIndexes(i)},~a,true,true,false);
+    a=models{useOrderIndexes(i)}.genes(~a);
+    models{useOrderIndexes(i)}=removeGenesFromModel(models{useOrderIndexes(i)},a,'keepReactions',false);
+    %TODO: remove unused metabolites, can also be at end of function
 end
 
 %Since mergeModels function will be used in the end, the models are
@@ -390,7 +399,8 @@ if ~isempty(preferredOrder) && numel(models)>1
         
         %Remove all the genes that were already found and add the other
         %ones to allUsedGenes
-        models{useOrderIndexes(i)}=removeGenes(models{useOrderIndexes(i)},allGenes{i+1}(genesToDelete),true,true,false);
+        models{useOrderIndexes(i)}=removeGenesFromModel(models{useOrderIndexes(i)},allGenes{i+1}(genesToDelete),'keepReactions',false);
+        %TODO: remove unused metabolites, can also be at end of function
         allUsedGenes(usedGenes)=true;
         
         %Remove the deleted genes from finalMappings and allGenes.
@@ -465,7 +475,7 @@ for i=1:numel(models)
                 %Update the matrix
                 newRxnGeneMat(j,nonRepStartIndex+index)=1;
                 
-                models{useOrderIndexes(i)}.grRules{j}=strrep(models{useOrderIndexes(i)}.grRules{j},geneName{1},strcat('OLD_',models{useOrderIndexes(i)}.id,'_',geneName{1}));
+                models{useOrderIndexes(i)}.grRules{j}=strrep(models{useOrderIndexes(i)}.grRules{j},geneName{1},strcat('OLD_',models{useOrderIndexes(i)}.modelID,'_',geneName{1}));
             end
         end
     end
@@ -473,7 +483,7 @@ for i=1:numel(models)
     %Add the new list of genes
     models{useOrderIndexes(i)}.rxnGeneMat=newRxnGeneMat;
     if ~isempty(nonReplaceableGenes)
-        models{useOrderIndexes(i)}.genes=[allGenes{1}(unique(newGenes));strcat('OLD_',models{useOrderIndexes(i)}.id,'_',nonReplaceableGenes)];
+        models{useOrderIndexes(i)}.genes=[allGenes{1}(unique(newGenes));strcat('OLD_',models{useOrderIndexes(i)}.modelID,'_',nonReplaceableGenes)];
     else
         models{useOrderIndexes(i)}.genes=allGenes{1}(unique(newGenes));
     end
@@ -484,6 +494,7 @@ for i=1:numel(models)
         %compartment is specified for the first gene
         models{useOrderIndexes(i)}.geneComps(:)=geneComps;
     end
+    % TODO: REMOVE GENECOMPS FIELDS?
 end
 
 %Now merge the models. All information should be correct except for 'or'
@@ -491,13 +502,13 @@ end
 draftModel=mergeModels(models);
 
 %Change description of the resulting model
-draftModel.id=getModelFor;
+draftModel.modelID=getModelFor;
 description='Generated by getModelFromHomology using ';
 for i=1:numel(models)
     if i<numel(models)
-        description=[description models{i}.id ', '];
+        description=[description models{i}.modelID ', '];
     else
-        description=[description models{i}.id];
+        description=[description models{i}.modelID];
     end
 end
 draftModel.description=description;
@@ -507,4 +518,5 @@ draftModel.rxnConfidenceScores=NaN(length(draftModel.rxns),1);
 draftModel.rxnConfidenceScores(:)=2;
 %Standardize grRules and notify if problematic grRules are found
 [draftModel.grRules,draftModel.rxnGeneMat]=standardizeGrRules(draftModel,false);
+draftModel.rules=generateRules(draftModel,'printLevel',0);
 end
