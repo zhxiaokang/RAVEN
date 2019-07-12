@@ -15,6 +15,7 @@ function model=mergeModels(models,supressWarnings)
 %
 %   Simonas Marcisauskas, 2018-04-03
 %
+% TODO: merge all cobra fields
 
 %Just return the model
 if numel(models)<=1
@@ -28,16 +29,16 @@ end
 
 %Add new functionality in the order specified in models
 model=models{1};
-model.id='MERGED';
+model.modelID='MERGED';
 model.description='';
 
 model.rxnFrom=cell(numel(models{1}.rxns),1);
-model.rxnFrom(:)={models{1}.id};
+model.rxnFrom(:)={models{1}.modelID};
 model.metFrom=cell(numel(models{1}.mets),1);
-model.metFrom(:)={models{1}.id};
+model.metFrom(:)={models{1}.modelID};
 if isfield(models{1},'genes')
     model.geneFrom=cell(numel(models{1}.genes),1);
-    model.geneFrom(:)={models{1}.id};
+    model.geneFrom(:)={models{1}.modelID};
 end
 
 if isfield(model,'subSystems')
@@ -50,17 +51,13 @@ else
     hasDeletedSubSystem=true;
 end
 
-if isfield(model,'equations')
-    model=rmfield(model,'equations');
-end
-
 for i=2:numel(models)
     %Add the model id to the rxn id id it already exists in the model (id
     %have to be unique) This is because it makes a '[]' string if no new
     %reactions
     if ~isempty(models{i}.rxns)
         I=ismember(models{i}.rxns,model.rxns);
-        models{i}.rxns(I)=strcat(models{i}.rxns(I),['_' models{i}.id]);
+        models{i}.rxns(I)=strcat(models{i}.rxns(I),['_' models{i}.modelID]);
     end
     
     %Make sure that there are no conflicting reaction ids
@@ -69,11 +66,11 @@ for i=2:numel(models)
     if ~isempty(conflicting)
         printString=cell(numel(conflicting),1);
         for j=1:numel(conflicting)
-            printString{j}=['Old: ' models{i}.rxns{conflicting(j)} ' New: ' models{i}.rxns{conflicting(j)} '_' models{i}.id];
-            models{i}.rxns{conflicting(j)}=[models{i}.rxns{conflicting(j)} '_' models{i}.id];
+            printString{j}=['Old: ' models{i}.rxns{conflicting(j)} ' New: ' models{i}.rxns{conflicting(j)} '_' models{i}.modelID];
+            models{i}.rxns{conflicting(j)}=[models{i}.rxns{conflicting(j)} '_' models{i}.modelID];
         end
         if supressWarnings==false
-            EM=['The following reaction IDs in ' models{i}.id ' are already present in the model and were renamed:'];
+            EM=['The following reaction IDs in ' models{i}.modelID ' are already present in the model and were renamed:'];
             dispEM(EM,false,printString);
             fprintf('\n');
         end
@@ -81,7 +78,11 @@ for i=2:numel(models)
     
     %Add all static stuff
     rxnFrom=cell(numel(models{i}.rxns),1);
-    rxnFrom(:)={models{i}.id};
+    rxnFrom(:)={models{i}.modelID};
+%     TODO: use getModelFieldsForType etc., also for mets and genes
+%     tmp=getModelFieldsForType(model,'rxns');
+%     tmp(ismember(tmp,{'S','rxnFrom','grRules','rxnGeneMat'})) = [];
+%     model.{tmp}
     model.rxnFrom=[model.rxnFrom;rxnFrom];
     model.rxns=[model.rxns;models{i}.rxns];
     model.rxnNames=[model.rxnNames;models{i}.rxnNames];
@@ -89,6 +90,8 @@ for i=2:numel(models)
     model.ub=[model.ub;models{i}.ub];
     model.c=[model.c;models{i}.c];
     model.rev=[model.rev;models{i}.rev];
+    
+    
     
     if hasDeletedSubSystem==false
         if isfield(models{i},'subSystems')
@@ -240,18 +243,18 @@ for i=2:numel(models)
     if ~isempty(conflicting)
         printString=cell(numel(conflicting),1);
         for j=1:numel(conflicting)
-            printString{j}=['Old: ' models{i}.mets{metsToAdd(conflicting(j))} ' New: ' models{i}.mets{metsToAdd(conflicting(j))} '_' models{i}.id];
-            models{i}.mets{metsToAdd(conflicting(j))}=[models{i}.mets{metsToAdd(conflicting(j))} '_' models{i}.id];
+            printString{j}=['Old: ' models{i}.mets{metsToAdd(conflicting(j))} ' New: ' models{i}.mets{metsToAdd(conflicting(j))} '_' models{i}.modelID];
+            models{i}.mets{metsToAdd(conflicting(j))}=[models{i}.mets{metsToAdd(conflicting(j))} '_' models{i}.modelID];
         end
         if supressWarnings==false
-            EM=['The following metabolite IDs in ' models{i}.id ' are already present in the model and were renamed:'];
+            EM=['The following metabolite IDs in ' models{i}.modelID ' are already present in the model and were renamed:'];
             dispEM(EM,false,printString);
         end
     end
     
     %Add static info on the metabolites
     metFrom=cell(numel(metsToAdd),1);
-    metFrom(:)={models{i}.id};
+    metFrom(:)={models{i}.modelID};
     model.metFrom=[model.metFrom;metFrom];
     model.mets=[model.mets;models{i}.mets(metsToAdd)];
     model.metNames=[model.metNames;models{i}.metNames(metsToAdd)];
@@ -348,7 +351,7 @@ for i=2:numel(models)
         %Make sure that there are no conflicting compartment ids
         [~, conflicting]=ismember(models{i}.compNames(compIndexes),model.compNames);
         if any(conflicting)
-            EM=['The following compartment IDs in ' models{i}.id ' are already present in the model but with another name. They have to be renamed'];
+            EM=['The following compartment IDs in ' models{i}.modelID ' are already present in the model but with another name. They have to be renamed'];
             dispEM(EM,true,model.comps(conflicting));
         end
         
@@ -408,7 +411,7 @@ for i=2:numel(models)
             emptyGene(:)={''};
             model.grRules=[emptyGene;models{i}.grRules];
             model.geneFrom=cell(numel(models{i}.genes),1);
-            model.geneFrom(:)={models{i}.id};
+            model.geneFrom(:)={models{i}.modelID};
             
             if isfield(models{i},'geneShortNames')
                 model.geneShortNames=models{i}.geneShortNames;
@@ -432,7 +435,7 @@ for i=2:numel(models)
             if ~isempty(genesToAdd)
                 model.genes=[model.genes;models{i}.genes(genesToAdd)];
                 emptyGene=cell(numel(genesToAdd),1);
-                emptyGene(:)={models{i}.id};
+                emptyGene(:)={models{i}.modelID};
                 model.geneFrom=[model.geneFrom;emptyGene];
                 model.rxnGeneMat=[model.rxnGeneMat sparse(size(model.rxnGeneMat,1),numel(genesToAdd))];
                 
