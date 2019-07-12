@@ -100,6 +100,14 @@ end
 modelNames=cell(numel(models),1);
 for i=1:numel(models)
     modelNames{i}=models{i}.id;
+    %Gene short names and geneMiriams are often different between species,
+    %safer not to include them
+    if isfield(models{i},'geneShortNames')
+        models{i}=rmfield(models{i},'geneShortNames');
+    end
+    if isfield(models{i},'geneMiriams')
+        models{i}=rmfield(models{i},'geneMiriams');
+    end
 end
 
 %Assume for now that all information is there and that it's correct. This
@@ -382,15 +390,12 @@ if ~isempty(preferredOrder) && numel(models)>1
         
         %Remove all the genes that were already found and add the other
         %ones to allUsedGenes
-        [models{useOrderIndexes(i)}, notDeleted]=removeGenes(models{useOrderIndexes(i)},allGenes{i+1}(genesToDelete),true,false,false);
+        models{useOrderIndexes(i)}=removeGenes(models{useOrderIndexes(i)},allGenes{i+1}(genesToDelete),true,false,false);
         allUsedGenes(usedGenes)=true;
         
-        %Remove the deleted genes from finalMappings and allGenes. Don't
-        %remove the genes in notDeleted, they are part of complexes with
-        %some non-mapped genes
-        deletedIndexes=~ismember(allGenes{i+1}(genesToDelete),notDeleted);
-        finalMappings{i}(:,genesToDelete(deletedIndexes))=[];
-        allGenes{i+1}(genesToDelete(deletedIndexes))=[];
+        %Remove the deleted genes from finalMappings and allGenes.
+        finalMappings{i}(:,genesToDelete)=[];
+        allGenes{i+1}(genesToDelete)=[];
     end
 end
 
@@ -499,14 +504,6 @@ draftModel.rxnNotes=cell(length(draftModel.rxns),1);
 draftModel.rxnNotes(:)={'Included by getModelFromHomology'};
 draftModel.rxnConfidenceScores=NaN(length(draftModel.rxns),1);
 draftModel.rxnConfidenceScores(:)=2;
-%Gene short names and geneMiriams are often different between species,
-%safer not to include them
-if isfield(draftModel,'geneShortNames')
-    draftModel=rmfield(draftModel,'geneShortNames');
-end
-if isfield(draftModel,'geneMiriams')
-    draftModel=rmfield(draftModel,'geneMiriams');
-end
 %Standardize grRules and notify if problematic grRules are found
 [draftModel.grRules,draftModel.rxnGeneMat]=standardizeGrRules(draftModel,false);
 end
