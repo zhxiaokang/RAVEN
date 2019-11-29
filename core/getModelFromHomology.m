@@ -5,48 +5,51 @@ function draftModel=getModelFromHomology(models,blastStructure,...
 %   Constructs a new model from a set of existing models and gene homology
 %   information.
 %
-%   models            a cell array of model structures to build the model
-%                     from. These models must be sorted by importance in
-%                     decreasing order
-%   blastStructure    a blastStructure as produced by getBlast or
-%                     getBlastFromExcel
-%   getModelFor       a three-four letter abbreviation of the organism to
-%                     build a model for. Must have BLASTP hits in both
-%                     directions to the organisms in 'models'
-%   preferredOrder    the order in which reactions should be added from the
-%                     models. If not supplied, reactions will be included
-%                     from all models, otherwise one gene will only result
-%                     in reactions from one model (opt, default {})
-%   strictness        integer that specifies which reactions should be
-%                     included:
-%                     1: Map new genes to old for all pairs, which have
-%                     acceptable BLASTP results in both directions
-%                     2: Map new genes to old for all pairs, which have
-%                     acceptable BLASTP results in correspondent direction
-%                     (mapping can be done in the opposite direction, see
-%                     mapNewGenesToOld below)
-%                     3: Check all BLASTP results and retain only the best
-%                     results by E-value for all gene pairs in each
-%                     direction separately. Then map new genes to old for
-%                     all pairs, which have acceptable BLASTP results in
-%                     both directions (opt, default 1).
-%   onlyGenesInModels consider BLASTP results only for genes that exist in
-%                     the models. This tends to import a larger fraction
-%                     from the existing models but may give less reliable
-%                     results. Has effect only if strictness=3 (opt,
-%                     default false)
-%   maxE              only look at genes with E-values <= this value (opt,
-%                     default 10^-30)
-%   minLen            only look at genes with alignment length >= this
-%                     value (opt, default 200)
-%   minIde            only look at genes with identity >= this value
-%                     (opt, default 40 (%))
-%   mapNewGenesToOld  determines how to match genes if not looking at only
-%                     1-1 orthologs. Either map the new genes to the old or
-%                     old genes to new. The default is to map the new genes
-%                     (opt, default true)
+%   Input:
+%   models              a cell array of model structures to build the model
+%                       from. These models must be sorted by importance in
+%                       decreasing order
+%   blastStructure      a blastStructure as produced by getBlast or
+%                       getBlastFromExcel
+%   getModelFor         a three-four letter abbreviation of the organism to
+%                       build a model for. Must have BLASTP hits in both
+%                       directions to the organisms in 'models'
+%   preferredOrder      the order in which reactions should be added from
+%                       the models. If not supplied, reactions will be
+%                       included from all models, otherwise one gene will
+%                       only result in reactions from one model (opt,
+%                       default {})
+%   strictness          integer that specifies which reactions should be
+%                       included:
+%                       1: Map new genes to old for all pairs, which have
+%                       acceptable BLASTP results in both directions
+%                       2: Map new genes to old for all pairs, which have
+%                       acceptable BLASTP results in correspondent
+%                       direction (mapping can be done in the opposite
+%                       direction, see mapNewGenesToOld below)
+%                       3: Check all BLASTP results and retain only the
+%                       best results by E-value for all gene pairs in each
+%                       direction separately. Then map new genes to old for
+%                       all pairs, which have acceptable BLASTP results in
+%                       both directions (opt, default 1).
+%   onlyGenesInModels   consider BLASTP results only for genes that exist
+%                       in the models. This tends to import a larger
+%                       fraction from the existing models but may give less
+%                       reliable results. Has effect only if strictness=3
+%                       (opt, default false)
+%   maxE                only look at genes with E-values <= this value
+%                       (opt, default 10^-30)
+%   minLen              only look at genes with alignment length >= this
+%                       value (opt, default 200)
+%   minIde              only look at genes with identity >= this value
+%                       (opt, default 40 (%))
+%   mapNewGenesToOld    determines how to match genes if not looking at
+%                       only 1-1 orthologs. Either map the new genes to the
+%                       old or old genes to new. The default is to map the
+%                       new genes (opt, default true)
 %
-%   draftModel        a model structure for the new organism
+%   Output:
+%   draftModel          a model structure for the new organism
 %
 %   The models in the 'models' structure should have named the metabolites
 %   in the same manner, have their reversible reactions in the same
@@ -55,9 +58,9 @@ function draftModel=getModelFromHomology(models,blastStructure,...
 %   'or'-relations in their grRules (use expandModel).
 %
 %   The resulting draft model contains only reactions associated with
-%   orthologous genes. The old (original) genes involved in 'and'
-%   relations in grRules without any orthologs are still included in
-%   the draft model as OLD_MODELID_geneName.
+%   orthologous genes. The old (original) genes involved in 'and' relations
+%   in grRules without any orthologs are still included in the draft model
+%   as OLD_MODELID_geneName.
 %
 %   NOTE: "to" and "from" means relative to the new organism
 %
