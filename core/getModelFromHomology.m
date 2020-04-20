@@ -68,6 +68,9 @@ function draftModel=getModelFromHomology(models,blastStructure,...
 %   Simonas Marcisauskas, 2018-08-09
 %
 
+hitGenes.oldGenes = [];  % the matched genes from the template model
+hitGenes.newGenes = [];  % the matched genes from the draft model (target organism)
+
 if nargin<4
     preferredOrder=[];
 end
@@ -438,6 +441,9 @@ for i=1:numel(models)
             mapIndex=find(ismember(allGenes{i+1},geneName));
             
             if ~isempty(mapIndex)
+                % collect the old genes
+                hitGenes.oldGenes = [hitGenes.oldGenes, {geneName}];
+                
                 %Get the new genes for that gene
                 a=find(finalMappings{i}(:,mapIndex));
                 
@@ -455,6 +461,10 @@ for i=1:numel(models)
                 for l=2:numel(b)
                     repString=[repString ') or (' fullGeneList{b(l)}];
                 end
+                
+                % collect the new mathed genes
+                hitGenes.newGenes = [hitGenes.newGenes, {repString}];
+                
                 %Use regexprep instead of strrep to prevent partial matches
                 models{useOrderIndexes(i)}.grRules{j}=regexprep(models{useOrderIndexes(i)}.grRules{j},['(^|\s|\()' geneName{1} '($|\s|\))'],['$1' repString '$2']);
             else
